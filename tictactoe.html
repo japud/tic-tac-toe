@@ -1,0 +1,394 @@
+<title>Graph Paper Tic-Tac-Toe</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one centered column on graph paper; scoreboard, board drawn in ink, controls underneath */
+:root {
+  --paper: #f3f6f8;
+  --grid: #d3e0ea;
+  --grid-major: #b9cddc;
+  --graphite: #2a3138;
+  --muted: #66727d;
+  --ink-x: #2346c4;
+  --ink-o: #b02e64;
+  --surface: #ffffff;
+  --line: #2a3138;
+  --win: #e8b400;
+  --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0f1a2b; --grid: #1a2a40; --grid-major: #233852; --graphite: #e4ecf4; --muted: #8fa3b8;
+    --ink-x: #7fa2ff; --ink-o: #ff7fae; --surface: #15233a; --line: #c9d6e3; --win: #ffd23f;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0f1a2b; --grid: #1a2a40; --grid-major: #233852; --graphite: #e4ecf4; --muted: #8fa3b8;
+  --ink-x: #7fa2ff; --ink-o: #ff7fae; --surface: #15233a; --line: #c9d6e3; --win: #ffd23f;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(var(--grid-major) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-major) 1px, transparent 1px),
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 100px 100px, 100px 100px, 20px 20px, 20px 20px;
+  color: var(--graphite);
+  font-family: var(--font-display);
+  min-height: 100vh;
+  padding-inline: 16px;
+  padding-block: 32px 48px;
+}
+.wrap { max-width: 440px; margin: 0 auto; display: flex; flex-direction: column; gap: 22px; }
+
+h1 {
+  font-weight: 800; font-size: clamp(2rem, 8vw, 2.75rem); line-height: 1; margin: 0;
+  letter-spacing: -0.02em; text-wrap: balance;
+}
+h1 .x { color: var(--ink-x); }
+h1 .o { color: var(--ink-o); }
+
+.modes { display: flex; gap: 0; border: 1.5px solid var(--line); border-radius: 999px; overflow: hidden; background: var(--surface); }
+.modes button {
+  flex: 1; border: 0; background: transparent; color: var(--graphite); font: 500 0.82rem var(--font-mono);
+  padding: 9px 6px; cursor: pointer; letter-spacing: 0.02em;
+}
+.modes button + button { border-left: 1.5px solid var(--line); }
+.modes button[aria-pressed="true"] { background: var(--graphite); color: var(--paper); }
+
+.score { display: grid; grid-template-columns: 1fr 1fr 1fr; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.score div { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-bottom: 3px solid transparent; transition: border-color .2s; }
+.score div.turn-x { border-color: var(--ink-x); }
+.score div.turn-o { border-color: var(--ink-o); }
+.score .lbl { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); }
+.score .num { font-size: 1.6rem; font-weight: 600; }
+.score .sx .num { color: var(--ink-x); }
+.score .so .num { color: var(--ink-o); }
+.score .sd { text-align: center; }
+.score .so { text-align: right; }
+
+.status { font-size: 1.15rem; font-weight: 500; min-height: 1.5em; margin: 0; }
+
+.board {
+  position: relative; aspect-ratio: 1; width: 100%; max-width: 100%;
+  display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr);
+}
+.cell {
+  border: 0; background: transparent; padding: 14%; cursor: pointer; color: inherit;
+  display: grid; place-items: center; border-radius: 6px;
+}
+.cell:nth-child(-n+6) { border-bottom: 3px solid var(--line); }
+.cell:not(:nth-child(3n)) { border-right: 3px solid var(--line); }
+.cell:nth-child(-n+6), .cell:not(:nth-child(3n)) { border-radius: 0; }
+.cell:hover:not(:disabled) { background: color-mix(in srgb, var(--surface) 70%, transparent); }
+.cell:focus-visible { outline: 3px solid var(--ink-x); outline-offset: -6px; }
+.cell:disabled { cursor: default; }
+.cell svg { width: 100%; height: 100%; overflow: visible; }
+.cell path, .cell circle { fill: none; stroke-width: 9; stroke-linecap: round; }
+.mark-x path { stroke: var(--ink-x); stroke-dasharray: 120; stroke-dashoffset: 120; animation: draw .18s ease-out forwards; }
+.mark-x path:nth-child(2) { animation-delay: .16s; }
+.mark-o circle { stroke: var(--ink-o); stroke-dasharray: 250; stroke-dashoffset: 250; animation: draw .32s ease-out forwards; }
+.cell.dim svg { opacity: .28; transition: opacity .3s; }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+
+.winline { position: absolute; inset: 0; pointer-events: none; width: 100%; height: 100%; }
+.winline line { stroke: var(--win); stroke-width: 10; stroke-linecap: round; stroke-dasharray: 400; stroke-dashoffset: 400; animation: draw .4s .25s ease-out forwards; mix-blend-mode: multiply; }
+:root[data-theme="dark"] .winline line { mix-blend-mode: normal; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .winline line { mix-blend-mode: normal; } }
+
+.actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.btn {
+  font: 600 0.95rem var(--font-display); padding: 11px 18px; border-radius: 8px; cursor: pointer;
+  border: 1.5px solid var(--line); background: var(--surface); color: var(--graphite);
+}
+.btn.primary { background: var(--graphite); color: var(--paper); }
+.btn:focus-visible, .modes button:focus-visible { outline: 3px solid var(--ink-x); outline-offset: 2px; }
+.hint { font: 0.75rem var(--font-mono); color: var(--muted); margin: 0; }
+
+.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; position: relative; }
+.colors > summary {
+  list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px;
+  font: 600 0.85rem var(--font-mono); padding: 8px 12px; border: 1.5px solid var(--line);
+  border-radius: 999px; background: var(--surface); color: var(--graphite);
+}
+.colors > summary::-webkit-details-marker { display: none; }
+.colors > summary:focus-visible { outline: 3px solid var(--ink-x); outline-offset: 2px; }
+.colors .dots { display: inline-flex; }
+.colors .dots i { width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid var(--surface); }
+.colors .dots i:first-child { background: var(--ink-x); }
+.colors .dots i:last-child { background: var(--ink-o); margin-left: -4px; }
+.panel {
+  position: absolute; right: 0; top: calc(100% + 8px); z-index: 5; width: min(300px, calc(100vw - 32px));
+  background: var(--surface); border: 1.5px solid var(--line); border-radius: 10px;
+  padding: 14px; display: flex; flex-direction: column; gap: 14px;
+  box-shadow: 0 10px 30px color-mix(in srgb, var(--graphite) 18%, transparent);
+}
+.pick { display: flex; flex-direction: column; gap: 8px; }
+.pick .head { display: flex; justify-content: space-between; align-items: center; font: 600 0.8rem var(--font-mono); text-transform: uppercase; letter-spacing: 0.1em; }
+.pick[data-p="X"] .head span { color: var(--ink-x); }
+.pick[data-p="O"] .head span { color: var(--ink-o); }
+.pick input[type="color"] { width: 34px; height: 26px; padding: 0; border: 1.5px solid var(--line); border-radius: 6px; background: none; cursor: pointer; }
+.swatches { display: flex; flex-wrap: wrap; gap: 6px; }
+.swatches button {
+  width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--surface); cursor: pointer;
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--line) 30%, transparent);
+}
+.swatches button[aria-pressed="true"] { box-shadow: 0 0 0 2.5px var(--graphite); }
+.swatches button:focus-visible { outline: 3px solid var(--graphite); outline-offset: 2px; }
+.panel .btn { padding: 7px 12px; font-size: 0.85rem; align-self: flex-start; }
+
+@media (prefers-reduced-motion: reduce) {
+  .mark-x path, .mark-o circle, .winline line { animation: none; stroke-dashoffset: 0; }
+}
+</style>
+
+<main class="wrap">
+  <div class="top">
+    <h1>Tic<span class="x">·</span>Tac<span class="o">·</span>Toe</h1>
+    <details class="colors" id="colors">
+      <summary><span class="dots" aria-hidden="true"><i></i><i></i></span>Colors</summary>
+      <div class="panel">
+        <div class="pick" data-p="X">
+          <div class="head"><span>X color</span><input type="color" id="color-x" aria-label="Custom X color"></div>
+          <div class="swatches" role="group" aria-label="X color presets"></div>
+        </div>
+        <div class="pick" data-p="O">
+          <div class="head"><span>O color</span><input type="color" id="color-o" aria-label="Custom O color"></div>
+          <div class="swatches" role="group" aria-label="O color presets"></div>
+        </div>
+        <button type="button" class="btn" id="color-reset">Restore default colors</button>
+      </div>
+    </details>
+  </div>
+
+  <div class="modes" role="group" aria-label="Game mode">
+    <button type="button" id="mode-pvp" data-mode="pvp">2 players</button>
+    <button type="button" id="mode-easy" data-mode="easy">vs CPU easy</button>
+    <button type="button" id="mode-hard" data-mode="hard">vs CPU hard</button>
+  </div>
+
+  <div class="score" aria-live="polite">
+    <div class="sx" id="score-x"><span class="lbl" id="label-x">X</span><span class="num" id="num-x">0</span></div>
+    <div class="sd"><span class="lbl">Draws</span><span class="num" id="num-d">0</span></div>
+    <div class="so" id="score-o"><span class="lbl" id="label-o">O</span><span class="num" id="num-o">0</span></div>
+  </div>
+
+  <p class="status" id="status" aria-live="polite"></p>
+
+  <div class="board" id="board" role="grid" aria-label="Tic-tac-toe board"></div>
+
+  <div class="actions">
+    <button type="button" class="btn primary" id="next">New round</button>
+    <button type="button" class="btn" id="reset">Reset scores</button>
+  </div>
+  <p class="hint">Tip: use the number pad (7-8-9 is the top row) to play.</p>
+</main>
+
+<script>
+const LINES = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+const boardEl = document.getElementById('board');
+const statusEl = document.getElementById('status');
+let S, cpuTimer = null;
+
+function fresh(prev) {
+  return {
+    mode: prev?.mode ?? 'hard',
+    cells: Array(9).fill(null),
+    turn: prev ? (prev.starter === 'X' ? 'O' : 'X') : 'X',
+    starter: prev ? (prev.starter === 'X' ? 'O' : 'X') : 'X',
+    score: prev?.score ?? { X: 0, O: 0, D: 0 },
+    over: false, winLine: null
+  };
+}
+
+function winner(c) {
+  for (const l of LINES) if (c[l[0]] && c[l[0]] === c[l[1]] && c[l[0]] === c[l[2]]) return { p: c[l[0]], line: l };
+  return c.every(Boolean) ? { p: 'D' } : null;
+}
+
+// Minimax with depth so the CPU wins fast and loses slow.
+function minimax(c, player, depth) {
+  const w = winner(c);
+  if (w) return { s: w.p === 'O' ? 10 - depth : w.p === 'X' ? depth - 10 : 0 };
+  let best = { s: player === 'O' ? -Infinity : Infinity, i: -1 };
+  for (let i = 0; i < 9; i++) {
+    if (c[i]) continue;
+    c[i] = player;
+    const r = minimax(c, player === 'O' ? 'X' : 'O', depth + 1);
+    c[i] = null;
+    if (player === 'O' ? r.s > best.s : r.s < best.s) best = { s: r.s, i };
+  }
+  return best;
+}
+
+function cpuMove() {
+  const empty = S.cells.map((v, i) => v ? -1 : i).filter(i => i >= 0);
+  if (S.mode === 'easy' && Math.random() < 0.7) return empty[Math.floor(Math.random() * empty.length)];
+  return minimax(S.cells.slice(), 'O', 0).i;
+}
+
+const isCpu = () => S.mode !== 'pvp';
+
+function play(i) {
+  if (S.over || S.cells[i]) return;
+  S.cells[i] = S.turn;
+  const w = winner(S.cells);
+  if (w) {
+    S.over = true;
+    S.score[w.p]++;
+    S.winLine = w.line || null;
+  } else {
+    S.turn = S.turn === 'X' ? 'O' : 'X';
+  }
+  render(i);
+  maybeCpu();
+}
+
+function maybeCpu() {
+  clearTimeout(cpuTimer);
+  if (isCpu() && !S.over && S.turn === 'O') {
+    cpuTimer = setTimeout(() => play(cpuMove()), 450);
+  }
+}
+
+const SVG_X = '<svg viewBox="0 0 100 100" class="mark-x" aria-hidden="true"><path d="M18 18 L82 82"/><path d="M82 18 L18 82"/></svg>';
+const SVG_O = '<svg viewBox="0 0 100 100" class="mark-o" aria-hidden="true"><circle cx="50" cy="50" r="34" transform="rotate(-90 50 50)"/></svg>';
+
+function buildBoard() {
+  boardEl.innerHTML = '';
+  for (let i = 0; i < 9; i++) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'cell'; b.id = 'cell-' + i;
+    b.addEventListener('click', () => {
+      if (isCpu() && S.turn === 'O') return;
+      play(i);
+    });
+    boardEl.appendChild(b);
+  }
+}
+
+function names() {
+  return isCpu() ? { X: 'You', O: 'CPU' } : { X: 'Player X', O: 'Player O' };
+}
+
+function render(justPlayed) {
+  const n = names();
+  const cells = boardEl.children;
+  const row = ['top', 'middle', 'bottom'], col = ['left', 'center', 'right'];
+  for (let i = 0; i < 9; i++) {
+    const b = cells[i], v = S.cells[i];
+    const has = b.dataset.v || '';
+    if ((v || '') !== has) {
+      b.innerHTML = v === 'X' ? SVG_X : v === 'O' ? SVG_O : '';
+      b.dataset.v = v || '';
+      if (v && i !== justPlayed) b.querySelectorAll('path,circle').forEach(p => { p.style.animation = 'none'; p.style.strokeDashoffset = 0; });
+    }
+    b.disabled = !!v || S.over || (isCpu() && S.turn === 'O');
+    b.classList.toggle('dim', S.over && !!S.winLine && !S.winLine.includes(i) && !!v);
+    b.setAttribute('aria-label', `${row[Math.floor(i/3)]} ${col[i%3]}: ${v || 'empty'}`);
+  }
+
+  boardEl.querySelector('.winline')?.remove();
+  if (S.winLine) {
+    const c = i => [50 + (i % 3) * 100, 50 + Math.floor(i / 3) * 100];
+    let [x1, y1] = c(S.winLine[0]), [x2, y2] = c(S.winLine[2]);
+    const dx = (x2 - x1) / 200 * 30, dy = (y2 - y1) / 200 * 30;
+    boardEl.insertAdjacentHTML('beforeend',
+      `<svg class="winline" viewBox="0 0 300 300" aria-hidden="true"><line x1="${x1 - dx}" y1="${y1 - dy}" x2="${x2 + dx}" y2="${y2 + dy}"/></svg>`);
+  }
+
+  document.getElementById('label-x').textContent = n.X + ' · X';
+  document.getElementById('label-o').textContent = n.O + ' · O';
+  document.getElementById('num-x').textContent = S.score.X;
+  document.getElementById('num-o').textContent = S.score.O;
+  document.getElementById('num-d').textContent = S.score.D;
+  document.getElementById('score-x').className = 'sx' + (!S.over && S.turn === 'X' ? ' turn-x' : '');
+  document.getElementById('score-o').className = 'so' + (!S.over && S.turn === 'O' ? ' turn-o' : '');
+
+  const w = S.over ? winner(S.cells) : null;
+  if (w?.p === 'D') statusEl.textContent = "Draw. Nobody gets three in a row.";
+  else if (w) statusEl.textContent = isCpu() ? (w.p === 'X' ? 'You win!' : 'The CPU wins this round.') : `${n[w.p]} wins!`;
+  else if (isCpu()) statusEl.textContent = S.turn === 'X' ? 'Your move.' : 'CPU is thinking…';
+  else statusEl.textContent = `${n[S.turn]} to move.`;
+
+  document.querySelectorAll('.modes button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mode === S.mode)));
+}
+
+document.querySelectorAll('.modes button').forEach(b => b.addEventListener('click', () => {
+  if (b.dataset.mode === S.mode) return;
+  S = fresh(); S.mode = b.dataset.mode;
+  clearTimeout(cpuTimer); buildBoard(); render(); maybeCpu();
+}));
+document.getElementById('next').addEventListener('click', () => {
+  S = fresh(S); clearTimeout(cpuTimer); buildBoard(); render(); maybeCpu();
+});
+document.getElementById('reset').addEventListener('click', () => {
+  S.score = { X: 0, O: 0, D: 0 }; render();
+});
+// Keypad layout: 7 8 9 on top, 1 2 3 on the bottom.
+const KEYMAP = { 7: 0, 8: 1, 9: 2, 4: 3, 5: 4, 6: 5, 1: 6, 2: 7, 3: 8 };
+document.addEventListener('keydown', e => {
+  if (e.key in KEYMAP && !(isCpu() && S.turn === 'O')) play(KEYMAP[e.key]);
+  else if ((e.key === 'n' || e.key === 'Enter') && S.over && e.target === document.body) document.getElementById('next').click();
+});
+
+// Mark colors: set as inline custom properties on <html> so every X/O on screen
+// (board, score, title) picks them up instantly, mid-game or not.
+const PRESETS = ['#2346c4', '#b02e64', '#1f8a5b', '#e0661b', '#7b3fd1', '#0e8f9c', '#c9a100', '#2a3138'];
+const colorsEl = document.getElementById('colors');
+const custom = { X: null, O: null };
+try { Object.assign(custom, JSON.parse(localStorage.getItem('ttt-colors')) || {}); } catch {}
+
+function currentColor(p) {
+  return getComputedStyle(document.documentElement).getPropertyValue(p === 'X' ? '--ink-x' : '--ink-o').trim();
+}
+function applyColors() {
+  const root = document.documentElement.style;
+  for (const p of ['X', 'O']) {
+    const prop = p === 'X' ? '--ink-x' : '--ink-o';
+    custom[p] ? root.setProperty(prop, custom[p]) : root.removeProperty(prop);
+    const c = currentColor(p).toLowerCase();
+    document.getElementById(p === 'X' ? 'color-x' : 'color-o').value = /^#[0-9a-f]{6}$/.test(c) ? c : '#000000';
+    colorsEl.querySelectorAll(`.pick[data-p="${p}"] .swatches button`)
+      .forEach(b => b.setAttribute('aria-pressed', String(b.dataset.c === c)));
+  }
+  try { localStorage.setItem('ttt-colors', JSON.stringify(custom)); } catch {}
+}
+function setColor(p, c) { custom[p] = c; applyColors(); }
+
+colorsEl.querySelectorAll('.pick').forEach(pick => {
+  const p = pick.dataset.p, wrap = pick.querySelector('.swatches');
+  for (const c of PRESETS) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.dataset.c = c; b.style.background = c;
+    b.setAttribute('aria-label', `Set ${p} to ${c}`);
+    b.addEventListener('click', () => setColor(p, c));
+    wrap.appendChild(b);
+  }
+  pick.querySelector('input[type="color"]').addEventListener('input', e => setColor(p, e.target.value));
+});
+document.getElementById('color-reset').addEventListener('click', () => { custom.X = custom.O = null; applyColors(); });
+// Close the menu on outside click or Escape.
+document.addEventListener('click', e => { if (colorsEl.open && !colorsEl.contains(e.target)) colorsEl.open = false; });
+colorsEl.addEventListener('keydown', e => { if (e.key === 'Escape') { colorsEl.open = false; colorsEl.querySelector('summary').focus(); } });
+// Don't let number keys typed while the menu has focus place marks.
+colorsEl.addEventListener('keydown', e => e.stopPropagation());
+// Defaults differ between light and dark themes; refresh the pickers when the theme flips.
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyColors);
+new MutationObserver(applyColors).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+applyColors();
+
+function start(data) {
+  S = data && data.cells ? data : fresh();
+  buildBoard(); render(-1); maybeCpu();
+}
+window.claude?.hot?.snapshot?.(() => S);
+window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+</script>
