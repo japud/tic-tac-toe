@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Full-bleed graph paper; the marks stay inside the central safe zone so Android's maskable crop never cuts them.
+       Grid lines are explicit paths (not <pattern>) so ImageMagick can render the PNGs. -->
+  <rect width="512" height="512" fill="#f3f6f8"/>
+  <path fill="none" stroke="#d3e0ea" stroke-width="2" d="M25.6 0V512M0 25.6H512 M51.2 0V512M0 51.2H512 M76.8 0V512M0 76.8H512 M102.4 0V512M0 102.4H512 M153.6 0V512M0 153.6H512 M179.2 0V512M0 179.2H512 M204.8 0V512M0 204.8H512 M230.4 0V512M0 230.4H512 M281.6 0V512M0 281.6H512 M307.2 0V512M0 307.2H512 M332.8 0V512M0 332.8H512 M358.4 0V512M0 358.4H512 M409.6 0V512M0 409.6H512 M435.2 0V512M0 435.2H512 M460.8 0V512M0 460.8H512 M486.4 0V512M0 486.4H512"/>
+  <path fill="none" stroke="#b9cddc" stroke-width="3" d="M128 0V512M0 128H512 M256 0V512M0 256H512 M384 0V512M0 384H512"/>
+  <g fill="none" stroke-width="30" stroke-linecap="round">
+    <path d="M150 150 L240 240 M240 150 L150 240" stroke="#2346c4"/>
+    <circle cx="317" cy="317" r="50" stroke="#b02e64"/>
+  </g>
+</svg>

@@ -4,9 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-A browser tic-tac-toe game in a single file, `tictactoe.html`, with inline CSS and JS. There's no build step, package manager, linter or test suite. To run it, open the file in a browser (`xdg-open tictactoe.html`).
+A browser tic-tac-toe game in a single file, `tictactoe.html`, with inline CSS and JS. The game has no build step (only the phone app wrapper below does), no package manager, no linter and no test suite. To run it, open the file in a browser (`xdg-open tictactoe.html`).
 
 It's also hosted as a claude.ai Artifact at https://claude.ai/artifact/YGrPCTG9ra1EaBSnNnUgJe. After an approved change to the game, republish `tictactoe.html` to that URL so the hosted copy stays current.
+
+It's also an installable phone app (PWA) at https://japud.github.io/tic-tac-toe/. The repo is public for this reason. `.github/workflows/pages.yml` runs `pwa/build.sh` on every push to `main`. The script wraps `tictactoe.html` between `pwa/head.html` (doctype, viewport, manifest link) and `pwa/tail.html` (service worker registration) into `_site/index.html`. It also copies the manifest and icons and stamps the commit hash into the `sw.js` cache name. Keep `tictactoe.html` itself skeleton-free, because it's still the Artifact page. If you edit `pwa/icon.svg`, regenerate the PNGs with `convert -background none -density 300 pwa/icon.svg -resize 512x512 pwa/icon-512.png` (and the same at 192). The SVG avoids `<pattern>`, which ImageMagick doesn't render.
 
 ## Workflow
 

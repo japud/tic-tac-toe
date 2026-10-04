@@ -1,0 +1,4 @@
+<script>
+// Offline support: the service worker caches the app so it opens without a connection.
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
