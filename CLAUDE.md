@@ -6,11 +6,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A browser tic-tac-toe game in a single file, `tictactoe.html`, with inline CSS and JS. There's no build step, package manager, linter or test suite. To run it, open the file in a browser (`xdg-open tictactoe.html`).
 
-It's also hosted as a claude.ai Artifact at https://claude.ai/artifact/YGrPCTG9ra1EaBSnNnUgJe. After changing the game, republish `tictactoe.html` to that URL so the hosted copy stays current.
+It's also hosted as a claude.ai Artifact at https://claude.ai/artifact/YGrPCTG9ra1EaBSnNnUgJe. After an approved change to the game, republish `tictactoe.html` to that URL so the hosted copy stays current.
 
 ## Workflow
 
-- After every change, make a clean, descriptive commit (one logical change per commit) and push to `origin main` (https://github.com/japud/tic-tac-toe, private). The user relies on this history to revert changes.
+- The user reviews every change in their editor before it's committed. Make edits with the Edit/Write tools, not shell scripts, so the diffs show up in the IDE. When a change is done, stop and summarize it. Don't commit, push or republish until the user approves.
+- Once approved, make a clean, descriptive commit (one logical change per commit), push to `origin main` (https://github.com/japud/tic-tac-toe, private), and republish the Artifact. The user relies on this history to revert changes.
 - Keep `README.md`'s feature list in sync when features change.
 
 ## Artifact constraints on `tictactoe.html`
