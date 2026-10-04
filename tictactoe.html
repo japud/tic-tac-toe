@@ -84,20 +84,26 @@ h1 .o { color: var(--ink-o); }
   border: 0; background: transparent; padding: 14%; cursor: pointer; color: inherit;
   display: grid; place-items: center; border-radius: 6px;
 }
-.cell:nth-child(-n+6) { border-bottom: 3px solid var(--line); }
-.cell:not(:nth-child(3n)) { border-right: 3px solid var(--line); }
-.cell:nth-child(-n+6), .cell:not(:nth-child(3n)) { border-radius: 0; }
+/* Board lines are an SVG overlay so their ends can be rounded like pen strokes. */
+.gridlines { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.gridlines line { stroke: var(--line); stroke-width: 3; stroke-linecap: round; vector-effect: non-scaling-stroke; }
 .cell:hover:not(:disabled) { background: color-mix(in srgb, var(--surface) 70%, transparent); }
+/* Faint preview of the current player's mark on hoverable empty cells. */
+.ghost { opacity: 0; transition: opacity .15s; }
+@media (hover: hover) { .cell:hover:not(:disabled) .ghost { opacity: .18; } }
 .cell:focus-visible { outline: 3px solid var(--ink-x); outline-offset: -6px; }
 .cell:disabled { cursor: default; }
 .cell svg { width: 100%; height: 100%; overflow: visible; }
 .cell path, .glyph path { fill: none; stroke-width: 9; stroke-linecap: round; stroke-linejoin: round; }
 /* Every mark path has pathLength="100"; duration and delay are set inline per shape. */
 .mark-x path, .mark-o path { stroke-dasharray: 100; stroke-dashoffset: 100; animation: draw .3s ease-out forwards; }
-.mark-x path, .glyph-x path { stroke: var(--ink-x); }
-.mark-o path, .glyph-o path { stroke: var(--ink-o); }
+.mark-x path, .glyph-x path, .ghost-x path { stroke: var(--ink-x); }
+.mark-o path, .glyph-o path, .ghost-o path { stroke: var(--ink-o); }
 .cell.dim svg { opacity: .28; transition: opacity .3s; }
+/* Winning marks pop once the win line has finished drawing. */
+.cell.win svg { animation: pop .45s .6s ease-out; }
 @keyframes draw { to { stroke-dashoffset: 0; } }
+@keyframes pop { 40% { transform: scale(1.18); } }
 
 .winline { position: absolute; inset: 0; pointer-events: none; width: 100%; height: 100%; }
 .winline line { stroke: var(--win); stroke-width: 10; stroke-linecap: round; stroke-dasharray: 400; stroke-dashoffset: 400; animation: draw .4s .25s ease-out forwards; mix-blend-mode: multiply; }
@@ -108,7 +114,10 @@ h1 .o { color: var(--ink-o); }
 .btn {
   font: 600 0.95rem var(--font-display); padding: 11px 18px; border-radius: 8px; cursor: pointer;
   border: 1.5px solid var(--line); background: var(--surface); color: var(--graphite);
+  transition: transform .1s, box-shadow .1s;
 }
+.btn:hover { transform: translateY(-1px); box-shadow: 0 3px 0 var(--line); }
+.btn:active { transform: translateY(1px); box-shadow: none; }
 .btn.primary { background: var(--graphite); color: var(--paper); }
 .btn:focus-visible, .modes button:focus-visible { outline: 3px solid var(--ink-x); outline-offset: 2px; }
 .hint { font: 0.75rem var(--font-mono); color: var(--muted); margin: 0; }
@@ -159,6 +168,9 @@ h1 .o { color: var(--ink-o); }
 
 @media (prefers-reduced-motion: reduce) {
   .mark-x path, .mark-o path, .winline line { animation: none; stroke-dashoffset: 0; }
+  .cell.win svg { animation: none; }
+  .btn, .ghost { transition: none; }
+  .btn:hover, .btn:active { transform: none; }
 }
 </style>
 
@@ -316,13 +328,13 @@ const shapes = { ...DEFAULT_SHAPES };
 try { Object.assign(shapes, JSON.parse(localStorage.getItem('ttt-shapes')) || {}); } catch {}
 for (const p of ['X', 'O']) if (!SHAPES[p][shapes[p]]) shapes[p] = DEFAULT_SHAPES[p];
 
-// Board marks animate stroke by stroke; glyphs (menu previews) are static.
+// Board marks animate stroke by stroke; glyphs (menu previews) and ghosts (hover previews) are static.
 function markSvg(p, key, cls) {
   const d = SHAPES[p][key].d, step = d.length > 1;
-  const paths = d.map((s, k) => cls === 'glyph'
+  const paths = d.map((s, k) => cls !== 'mark'
     ? `<path d="${s}"/>`
     : `<path d="${s}" pathLength="100" style="animation-duration:${step ? .14 : .36}s;animation-delay:${k * .11}s"/>`).join('');
-  const c = cls === 'glyph' ? `glyph glyph-${p.toLowerCase()}` : `mark-${p.toLowerCase()}`;
+  const c = cls !== 'mark' ? `${cls} ${cls}-${p.toLowerCase()}` : `mark-${p.toLowerCase()}`;
   return `<svg viewBox="0 0 100 100" class="${c}" aria-hidden="true">${paths}</svg>`;
 }
 
@@ -337,6 +349,10 @@ function buildBoard() {
     });
     boardEl.appendChild(b);
   }
+  boardEl.insertAdjacentHTML('beforeend',
+    `<svg class="gridlines" viewBox="0 0 300 300" aria-hidden="true">
+      <line x1="100" y1="4" x2="100" y2="296"/><line x1="200" y1="4" x2="200" y2="296"/>
+      <line x1="4" y1="100" x2="296" y2="100"/><line x1="4" y1="200" x2="296" y2="200"/></svg>`);
 }
 
 function names() {
@@ -350,13 +366,17 @@ function render(justPlayed) {
   for (let i = 0; i < 9; i++) {
     const b = cells[i], v = S.cells[i];
     const has = b.dataset.v || '';
-    if ((v || '') !== has) {
-      b.innerHTML = v ? markSvg(v, shapes[v], 'mark') : '';
-      b.dataset.v = v || '';
-      if (v && i !== justPlayed) b.querySelectorAll('path').forEach(p => { p.style.animation = 'none'; p.style.strokeDashoffset = 0; });
+    if (!v) {
+      b.innerHTML = markSvg(S.turn, shapes[S.turn], 'ghost');
+      b.dataset.v = '';
+    } else if (v !== has) {
+      b.innerHTML = markSvg(v, shapes[v], 'mark');
+      b.dataset.v = v;
+      if (i !== justPlayed) b.querySelectorAll('path').forEach(p => { p.style.animation = 'none'; p.style.strokeDashoffset = 0; });
     }
     b.disabled = !!v || S.over || (isCpu() && S.turn === 'O');
     b.classList.toggle('dim', S.over && !!S.winLine && !S.winLine.includes(i) && !!v);
+    b.classList.toggle('win', !!S.winLine?.includes(i));
     b.setAttribute('aria-label', `${row[Math.floor(i/3)]} ${col[i%3]}: ${v || 'empty'}`);
   }
 
