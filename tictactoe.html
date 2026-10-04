@@ -91,10 +91,11 @@ h1 .o { color: var(--ink-o); }
 .cell:focus-visible { outline: 3px solid var(--ink-x); outline-offset: -6px; }
 .cell:disabled { cursor: default; }
 .cell svg { width: 100%; height: 100%; overflow: visible; }
-.cell path, .cell circle { fill: none; stroke-width: 9; stroke-linecap: round; }
-.mark-x path { stroke: var(--ink-x); stroke-dasharray: 120; stroke-dashoffset: 120; animation: draw .18s ease-out forwards; }
-.mark-x path:nth-child(2) { animation-delay: .16s; }
-.mark-o circle { stroke: var(--ink-o); stroke-dasharray: 250; stroke-dashoffset: 250; animation: draw .32s ease-out forwards; }
+.cell path, .glyph path { fill: none; stroke-width: 9; stroke-linecap: round; stroke-linejoin: round; }
+/* Every mark path has pathLength="100"; duration and delay are set inline per shape. */
+.mark-x path, .mark-o path { stroke-dasharray: 100; stroke-dashoffset: 100; animation: draw .3s ease-out forwards; }
+.mark-x path, .glyph-x path { stroke: var(--ink-x); }
+.mark-o path, .glyph-o path { stroke: var(--ink-o); }
 .cell.dim svg { opacity: .28; transition: opacity .3s; }
 @keyframes draw { to { stroke-dashoffset: 0; } }
 
@@ -112,18 +113,22 @@ h1 .o { color: var(--ink-o); }
 .btn:focus-visible, .modes button:focus-visible { outline: 3px solid var(--ink-x); outline-offset: 2px; }
 .hint { font: 0.75rem var(--font-mono); color: var(--muted); margin: 0; }
 
-.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; position: relative; }
-.colors > summary {
+.top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; position: relative; }
+.menus { display: flex; gap: 8px; }
+.menu > summary {
   list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px;
   font: 600 0.85rem var(--font-mono); padding: 8px 12px; border: 1.5px solid var(--line);
   border-radius: 999px; background: var(--surface); color: var(--graphite);
 }
-.colors > summary::-webkit-details-marker { display: none; }
-.colors > summary:focus-visible { outline: 3px solid var(--ink-x); outline-offset: 2px; }
+.menu > summary::-webkit-details-marker { display: none; }
+.menu > summary:focus-visible { outline: 3px solid var(--ink-x); outline-offset: 2px; }
 .colors .dots { display: inline-flex; }
 .colors .dots i { width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid var(--surface); }
 .colors .dots i:first-child { background: var(--ink-x); }
 .colors .dots i:last-child { background: var(--ink-o); margin-left: -4px; }
+.shapes-menu .glyphs { display: inline-flex; gap: 1px; }
+.shapes-menu .glyphs svg { width: 14px; height: 14px; overflow: visible; }
+.shapes-menu .glyphs path { stroke-width: 12; }
 .panel {
   position: absolute; right: 0; top: calc(100% + 8px); z-index: 5; width: min(300px, calc(100vw - 32px));
   background: var(--surface); border: 1.5px solid var(--line); border-radius: 10px;
@@ -142,17 +147,40 @@ h1 .o { color: var(--ink-o); }
 }
 .swatches button[aria-pressed="true"] { box-shadow: 0 0 0 2.5px var(--graphite); }
 .swatches button:focus-visible { outline: 3px solid var(--graphite); outline-offset: 2px; }
+.shape-opts { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.shape-opts button {
+  aspect-ratio: 1; padding: 8px; border-radius: 8px; cursor: pointer; background: var(--paper);
+  border: 1.5px solid color-mix(in srgb, var(--line) 25%, transparent);
+}
+.shape-opts button[aria-pressed="true"] { border-color: var(--graphite); box-shadow: 0 0 0 1.5px var(--graphite); }
+.shape-opts button:focus-visible { outline: 3px solid var(--graphite); outline-offset: 2px; }
+.shape-opts svg { width: 100%; height: 100%; display: block; overflow: visible; }
 .panel .btn { padding: 7px 12px; font-size: 0.85rem; align-self: flex-start; }
 
 @media (prefers-reduced-motion: reduce) {
-  .mark-x path, .mark-o circle, .winline line { animation: none; stroke-dashoffset: 0; }
+  .mark-x path, .mark-o path, .winline line { animation: none; stroke-dashoffset: 0; }
 }
 </style>
 
 <main class="wrap">
   <div class="top">
     <h1>Tic<span class="x">·</span>Tac<span class="o">·</span>Toe</h1>
-    <details class="colors" id="colors">
+    <div class="menus">
+    <details class="menu shapes-menu" id="shapes">
+      <summary><span class="glyphs" id="shape-glyphs" aria-hidden="true"></span>Shapes</summary>
+      <div class="panel">
+        <div class="pick" data-p="X">
+          <div class="head"><span>X shape</span></div>
+          <div class="shape-opts" role="group" aria-label="X shape"></div>
+        </div>
+        <div class="pick" data-p="O">
+          <div class="head"><span>O shape</span></div>
+          <div class="shape-opts" role="group" aria-label="O shape"></div>
+        </div>
+        <button type="button" class="btn" id="shape-reset">Restore classic shapes</button>
+      </div>
+    </details>
+    <details class="menu colors" id="colors">
       <summary><span class="dots" aria-hidden="true"><i></i><i></i></span>Colors</summary>
       <div class="panel">
         <div class="pick" data-p="X">
@@ -166,6 +194,7 @@ h1 .o { color: var(--ink-o); }
         <button type="button" class="btn" id="color-reset">Restore default colors</button>
       </div>
     </details>
+    </div>
   </div>
 
   <div class="modes" role="group" aria-label="Game mode">
@@ -258,8 +287,44 @@ function maybeCpu() {
   }
 }
 
-const SVG_X = '<svg viewBox="0 0 100 100" class="mark-x" aria-hidden="true"><path d="M18 18 L82 82"/><path d="M82 18 L18 82"/></svg>';
-const SVG_O = '<svg viewBox="0 0 100 100" class="mark-o" aria-hidden="true"><circle cx="50" cy="50" r="34" transform="rotate(-90 50 50)"/></svg>';
+// Mark shapes, drawn in a 100x100 box. spokes() gives straight strokes through the
+// center (X-style); ring() gives a closed outline whose radius alternates (stars) or not (polygons).
+const pt = (deg, r, cy = 50) => `${(50 + r * Math.cos(deg * Math.PI / 180)).toFixed(1)} ${(cy + r * Math.sin(deg * Math.PI / 180)).toFixed(1)}`;
+const spokes = (n, r, rot) => Array.from({ length: n }, (_, i) => `M${pt(rot + 180 * i / n + 180, r)} L${pt(rot + 180 * i / n, r)}`);
+const ring = (n, radii, rot = 0, cy = 50) => {
+  const k = n * radii.length;
+  return ['M' + Array.from({ length: k }, (_, i) => pt(rot - 90 + 360 * i / k, radii[i % radii.length], cy)).join(' L') + ' Z'];
+};
+const SHAPES = {
+  X: {
+    x:     { label: 'Classic X',        d: spokes(2, 45, 45) },
+    ast6:  { label: '6-point asterisk', d: spokes(3, 40, 90) },
+    ast8:  { label: '8-point asterisk', d: spokes(4, 40, 45) },
+    star5: { label: '5-point star',     d: ring(5, [40, 16], 0, 53) },
+    star4: { label: '4-point star',     d: ring(4, [42, 11]) }
+  },
+  O: {
+    circle:   { label: 'Circle',   d: ['M50 16 A34 34 0 1 1 50 84 A34 34 0 1 1 50 16'] },
+    triangle: { label: 'Triangle', d: ring(3, [40], 0, 57) },
+    square:   { label: 'Square',   d: ring(4, [42], 45) },
+    pentagon: { label: 'Pentagon', d: ring(5, [39], 0, 52) },
+    hexagon:  { label: 'Hexagon',  d: ring(6, [38]) }
+  }
+};
+const DEFAULT_SHAPES = { X: 'x', O: 'circle' };
+const shapes = { ...DEFAULT_SHAPES };
+try { Object.assign(shapes, JSON.parse(localStorage.getItem('ttt-shapes')) || {}); } catch {}
+for (const p of ['X', 'O']) if (!SHAPES[p][shapes[p]]) shapes[p] = DEFAULT_SHAPES[p];
+
+// Board marks animate stroke by stroke; glyphs (menu previews) are static.
+function markSvg(p, key, cls) {
+  const d = SHAPES[p][key].d, step = d.length > 1;
+  const paths = d.map((s, k) => cls === 'glyph'
+    ? `<path d="${s}"/>`
+    : `<path d="${s}" pathLength="100" style="animation-duration:${step ? .14 : .36}s;animation-delay:${k * .11}s"/>`).join('');
+  const c = cls === 'glyph' ? `glyph glyph-${p.toLowerCase()}` : `mark-${p.toLowerCase()}`;
+  return `<svg viewBox="0 0 100 100" class="${c}" aria-hidden="true">${paths}</svg>`;
+}
 
 function buildBoard() {
   boardEl.innerHTML = '';
@@ -286,9 +351,9 @@ function render(justPlayed) {
     const b = cells[i], v = S.cells[i];
     const has = b.dataset.v || '';
     if ((v || '') !== has) {
-      b.innerHTML = v === 'X' ? SVG_X : v === 'O' ? SVG_O : '';
+      b.innerHTML = v ? markSvg(v, shapes[v], 'mark') : '';
       b.dataset.v = v || '';
-      if (v && i !== justPlayed) b.querySelectorAll('path,circle').forEach(p => { p.style.animation = 'none'; p.style.strokeDashoffset = 0; });
+      if (v && i !== justPlayed) b.querySelectorAll('path').forEach(p => { p.style.animation = 'none'; p.style.strokeDashoffset = 0; });
     }
     b.disabled = !!v || S.over || (isCpu() && S.turn === 'O');
     b.classList.toggle('dim', S.over && !!S.winLine && !S.winLine.includes(i) && !!v);
@@ -375,11 +440,41 @@ colorsEl.querySelectorAll('.pick').forEach(pick => {
   pick.querySelector('input[type="color"]').addEventListener('input', e => setColor(p, e.target.value));
 });
 document.getElementById('color-reset').addEventListener('click', () => { custom.X = custom.O = null; applyColors(); });
-// Close the menu on outside click or Escape.
-document.addEventListener('click', e => { if (colorsEl.open && !colorsEl.contains(e.target)) colorsEl.open = false; });
-colorsEl.addEventListener('keydown', e => { if (e.key === 'Escape') { colorsEl.open = false; colorsEl.querySelector('summary').focus(); } });
-// Don't let number keys typed while the menu has focus place marks.
-colorsEl.addEventListener('keydown', e => e.stopPropagation());
+
+// Mark shapes: changing one redraws every mark already on the board, without animation.
+const shapesEl = document.getElementById('shapes');
+function applyShapes() {
+  for (const p of ['X', 'O']) {
+    shapesEl.querySelectorAll(`.pick[data-p="${p}"] .shape-opts button`)
+      .forEach(b => b.setAttribute('aria-pressed', String(b.dataset.s === shapes[p])));
+  }
+  document.getElementById('shape-glyphs').innerHTML = markSvg('X', shapes.X, 'glyph') + markSvg('O', shapes.O, 'glyph');
+  try { localStorage.setItem('ttt-shapes', JSON.stringify(shapes)); } catch {}
+  if (S) { boardEl.querySelectorAll('.cell').forEach(b => { b.dataset.v = ''; }); render(-1); }
+}
+shapesEl.querySelectorAll('.pick').forEach(pick => {
+  const p = pick.dataset.p, wrap = pick.querySelector('.shape-opts');
+  for (const [key, s] of Object.entries(SHAPES[p])) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.dataset.s = key; b.title = s.label;
+    b.setAttribute('aria-label', `${p} as ${s.label}`);
+    b.innerHTML = markSvg(p, key, 'glyph');
+    b.addEventListener('click', () => { shapes[p] = key; applyShapes(); });
+    wrap.appendChild(b);
+  }
+});
+document.getElementById('shape-reset').addEventListener('click', () => { Object.assign(shapes, DEFAULT_SHAPES); applyShapes(); });
+applyShapes();
+
+// Menus: only one open at a time; close on outside click or Escape.
+const menus = document.querySelectorAll('.menu');
+document.addEventListener('click', e => menus.forEach(m => { if (m.open && !m.contains(e.target)) m.open = false; }));
+menus.forEach(m => {
+  m.addEventListener('toggle', () => { if (m.open) menus.forEach(o => { if (o !== m) o.open = false; }); });
+  m.addEventListener('keydown', e => { if (e.key === 'Escape') { m.open = false; m.querySelector('summary').focus(); } });
+  // Don't let number keys typed while a menu has focus place marks.
+  m.addEventListener('keydown', e => e.stopPropagation());
+});
 // Defaults differ between light and dark themes; refresh the pickers when the theme flips.
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyColors);
 new MutationObserver(applyColors).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
